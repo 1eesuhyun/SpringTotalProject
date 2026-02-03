@@ -3,14 +3,28 @@ pipeline {
 	
 	// 전역변수 => ${SERVER_IP}
 	environment {
-			SERVER_IP = "aws ip"
-			SERVER_USER = "ubuntu"
 			APP_DIR = "~/app"
 			JAR_NAME = "SpringTotalProject-0.0.1-SNAPSHOT.war"
 	}
 		
 	stages {
-		
+		/*
+			git push = commit
+			    |
+			web hooks / poll
+			    |
+			 jenkins (local)
+			    |
+			  build
+			    |
+			  docker build
+			  docker push
+			    |
+			  minikube
+			    | deployment.yaml update
+			  브라우저 실행
+		*/
+		/*
 		 연결 확인 = ngrok
 		 stage('Check Git Info') {
 			steps {
@@ -20,7 +34,7 @@ pipeline {
 				    git log -1
 				   '''
 			}
-		}
+		}*/
 		
 		// 감지 = main : push (commit)
 		stage('Check Out') {
@@ -48,26 +62,58 @@ pipeline {
 			}
 		}
 		
-		// war파일 전송 = rsync / scp 
+		// Docker Build 
 		stage('Docker Build') {
 			steps {
-					sh '''
-						docker build -t leesuhyun1/total-app:latest .
-					   '''
-				}
+				sh '''
+					docker build -t leesuhyun1/total-app:latest .
+				   '''
 			}
 		}
+		
+		stage('Docker Login') {
+		  	steps {
+		   		 withCredentials([usernamePassword(
+		        	credentialsId: 'dockerhub-creds',
+		       		usernameVariable: 'DH_USER',
+		        	passwordVariable: 'DH_PASS'
+		    )]) {
+		     	 sh '''
+		       		 echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
+		      		'''
+		    	}
+		  	}
+		}
+		
+		// Docker Push
+		stage('Docker Push') {
+		  	steps {
+		    	sh '''
+		      		docker push mindory0144/total-app:latest
+		    	'''
+		  	}
+		}
+		
 		// 실행 명령 
 		
-		stage('Deploy to Minikube') {
+		stage('Deploy to MiniKube') {
 			steps {
-					sh '''
-						kubectl delete deployment total-app || true
-						kubectl apply -f ~/k8s/deployment.yaml
-					   '''
-				}
+				sh '''
+					kubectl delete deployment total-app || true
+					sudo -u sist /usr/local/bin/kubectl apply -f /var/lib/jenkins/k8s/deployment.yaml
+					sudo -u sist /usr/local/bin/kubectl rollout restart deployment/totalapp-deployment
+					sudo -u sist /usr/local/bin/kubectl rollout status deployment/totalapp-deployment
+				   '''
 			}
 		}
 		
 	}
 }
+
+/*
+	sudo visudo
+	
+	(맨 밑 @includedir 바로 윗 줄에 추가)
+	jenkins ALL=(sist) NOPASSWD: /usr/local/bin/kubectl
+
+*/
