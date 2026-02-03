@@ -11,7 +11,6 @@ pipeline {
 		
 	stages {
 		
-		/*
 		 연결 확인 = ngrok
 		 stage('Check Git Info') {
 			steps {
@@ -22,7 +21,7 @@ pipeline {
 				   '''
 			}
 		}
-		*/
+		
 		// 감지 = main : push (commit)
 		stage('Check Out') {
 			steps {
@@ -67,8 +66,7 @@ pipeline {
 					sh """
 					    ssh -o StrictHostKeyChecking=no ${SERVER_USER}@{SERVER_IP} << 'EOF'
 					       pkill -f 'java -jar' || true
-					       nohup java -jar ${APP_DIR}/${JAR_NAME} > log.txt 2>&1 &
-EOF
+					       nohup java -jar ${APP_DIR}/${JAR_NAME} > log.txt 2>&1 &EOF
 					   """ 
 				}
 			}
